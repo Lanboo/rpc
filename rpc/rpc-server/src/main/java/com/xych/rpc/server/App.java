@@ -1,4 +1,4 @@
-package com.xych.rpc.server.app;
+package com.xych.rpc.server;
 
 /**
  * Hello world!

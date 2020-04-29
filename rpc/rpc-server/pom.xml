@@ -7,16 +7,21 @@
         <version>1.0.0-SNAPSHOT</version>
     </parent>
     <artifactId>rpc-server</artifactId>
-    <packaging>pom</packaging>
     <name>rpc-server</name>
     <url>http://maven.apache.org</url>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
     <dependencies>
+        <dependency>
+            <groupId>com.xych</groupId>
+            <artifactId>rpc-common</artifactId>
+            <version>1.0.0-SNAPSHOT</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
     </dependencies>
-    <modules>
-        <module>rpc-server-api</module>
-        <module>rpc-server-app</module>
-    </modules>
 </project>
