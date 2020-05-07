@@ -16,12 +16,12 @@ public class App {
     }
 
     public static void main(String[] args) {
-        HelloApi helloApi = rpcProxyClient.clienProxy(HelloApi.class, host, port);
-        helloApi.sayHello();
-        helloApi.say("abcdefg");
-
         UserRequest userRequest = UserRequest.builder().name("XYCH").age(18).sex("M").build();
         UserApi userApi = rpcProxyClient.clienProxy(UserApi.class, host, port);
         userApi.save(userRequest);
+        
+        HelloApi helloApi = rpcProxyClient.clienProxy(HelloApi.class, host, port);
+        helloApi.sayHello();
+        helloApi.say("abcdefg");
     }
 }
