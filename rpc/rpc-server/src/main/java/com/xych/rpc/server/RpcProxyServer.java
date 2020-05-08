@@ -10,11 +10,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+//import java.util.concurrent.ExecutorService;
+//import java.util.concurrent.Executors;
 
 public class RpcProxyServer {
-    private ExecutorService executorService = Executors.newCachedThreadPool();
+    //private ExecutorService executorService = Executors.newCachedThreadPool();
     private final Map<String, Object> serviceMap = new HashMap<>();
 
     private Selector selector;
@@ -52,8 +52,8 @@ public class RpcProxyServer {
                     channel.register(selector, SelectionKey.OP_READ);
                 }
                 else if(key.isReadable()) {
-                    executorService.execute(new ReadProcessorHandler(this.serviceMap, this.selector, key));
-                    //                    new ReadProcessorHandler(this.serviceMap, this.selector, key).run();
+                    // executorService.execute(new ReadProcessorHandler(this.serviceMap, this.selector, key));
+                    new ReadProcessorHandler(this.serviceMap, this.selector, key).run();
                 }
                 else if(key.isWritable()) {
                     // executorService.execute(new WriteProcessorHandler(key));
