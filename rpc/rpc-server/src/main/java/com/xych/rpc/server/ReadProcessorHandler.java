@@ -6,9 +6,9 @@ import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.io.IOUtils;
 
@@ -21,13 +21,13 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class ReadProcessorHandler implements Runnable {
     private final Map<String, Object> serviceMap;
-    private final Selector selector;
     private final SelectionKey readKey;
+    private final CountDownLatch downLatch;
 
-    public ReadProcessorHandler(Map<String, Object> serviceMap, Selector selector, SelectionKey readKey) {
+    public ReadProcessorHandler(Map<String, Object> serviceMap, SelectionKey readKey, CountDownLatch downLatch) {
         this.serviceMap = serviceMap;
-        this.selector = selector;
         this.readKey = readKey;
+        this.downLatch = downLatch;
     }
 
     @Override
@@ -62,7 +62,7 @@ public class ReadProcessorHandler implements Runnable {
                     log.info("OP_READ:RpcInvocation={}", invocation);
                     RpcResult result = invoke(invocation);
                     log.info("OP_READ:RpcResult={}", result);
-                    channel.register(this.selector, SelectionKey.OP_WRITE, result);
+                    channel.register(this.readKey.selector(), SelectionKey.OP_WRITE, result);
                 }
             }
             else if(readFlag == 0) {
@@ -77,6 +77,7 @@ public class ReadProcessorHandler implements Runnable {
         finally {
             readBuffer.clear();
             IOUtils.closeQuietly(ois);
+            this.downLatch.countDown();
         }
         log.info("SelectionKey.OP_READ End");
     }

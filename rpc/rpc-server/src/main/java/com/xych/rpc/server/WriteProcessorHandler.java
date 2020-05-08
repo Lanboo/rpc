@@ -6,6 +6,7 @@ import java.io.ObjectOutputStream;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.concurrent.CountDownLatch;
 
 import org.apache.commons.io.IOUtils;
 
@@ -15,9 +16,11 @@ import lombok.extern.slf4j.Slf4j;
 public class WriteProcessorHandler implements Runnable {
 
     private SelectionKey writeKey;
+    private final CountDownLatch downLatch;
 
-    public WriteProcessorHandler(SelectionKey writeKey) {
+    public WriteProcessorHandler(SelectionKey writeKey, CountDownLatch downLatch) {
         this.writeKey = writeKey;
+        this.downLatch = downLatch;
     }
 
     @Override
@@ -43,6 +46,7 @@ public class WriteProcessorHandler implements Runnable {
         finally {
             IOUtils.closeQuietly(oos);
             IOUtils.closeQuietly(channel);
+            this.downLatch.countDown();
         }
         log.info("SelectionKey.OP_WRITE End");
     }

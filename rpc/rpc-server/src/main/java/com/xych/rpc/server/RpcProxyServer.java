@@ -10,6 +10,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -29,7 +31,7 @@ public class RpcProxyServer {
         serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
     }
 
-    public void publisher() throws IOException {
+    public void publisher() throws Exception {
         while(true) {
             // selector.select() 会阻塞
             // 阻塞n毫秒
@@ -38,7 +40,9 @@ public class RpcProxyServer {
             if(readyCount == 0) {
                 continue;
             }
-            Iterator<SelectionKey> keyIter = selector.selectedKeys().iterator();
+            Set<SelectionKey> keySet = selector.selectedKeys();
+            CountDownLatch downLatch = new CountDownLatch(keySet.size());
+            Iterator<SelectionKey> keyIter = keySet.iterator();
             while(keyIter.hasNext()) {
                 SelectionKey key = keyIter.next();
                 keyIter.remove();
@@ -50,16 +54,19 @@ public class RpcProxyServer {
                     // 设置通道为非阻塞模式
                     channel.configureBlocking(false);
                     channel.register(selector, SelectionKey.OP_READ);
+                    downLatch.countDown();
                 }
                 else if(key.isReadable()) {
-                    executorService.execute(new ReadProcessorHandler(this.serviceMap, this.selector, key));
-                    //                    new ReadProcessorHandler(this.serviceMap, this.selector, key).run();
+                    executorService.execute(new ReadProcessorHandler(this.serviceMap, key, downLatch));
+                    // new ReadProcessorHandler(this.serviceMap, key, downLatch).run();
                 }
                 else if(key.isWritable()) {
-                    // executorService.execute(new WriteProcessorHandler(key));
-                    new WriteProcessorHandler(key).run();
+                    executorService.execute(new WriteProcessorHandler(key, downLatch));
+                    // new WriteProcessorHandler(key, downLatch).run();
                 }
             }
+            downLatch.await();
+            // downLatch.await(1000, TimeUnit.MILLISECONDS);
         }
     }
 
