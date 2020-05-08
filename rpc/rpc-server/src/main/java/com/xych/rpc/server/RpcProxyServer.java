@@ -31,11 +31,20 @@ public class RpcProxyServer {
 
     public void publisher() throws IOException {
         while(true) {
-            selector.select();
+            // selector.select() 会阻塞
+            // 阻塞n毫秒
+            // 当异步注册事件时，selector.select()会一直阻塞
+            int readyCount = selector.select(1000);
+            if(readyCount == 0) {
+                continue;
+            }
             Iterator<SelectionKey> keyIter = selector.selectedKeys().iterator();
             while(keyIter.hasNext()) {
                 SelectionKey key = keyIter.next();
                 keyIter.remove();
+                if(!key.isValid()) {
+                    continue;
+                }
                 if(key.isAcceptable()) {
                     SocketChannel channel = serverSocketChannel.accept();
                     // 设置通道为非阻塞模式
@@ -44,9 +53,11 @@ public class RpcProxyServer {
                 }
                 else if(key.isReadable()) {
                     executorService.execute(new ReadProcessorHandler(this.serviceMap, this.selector, key));
+                    //                    new ReadProcessorHandler(this.serviceMap, this.selector, key).run();
                 }
                 else if(key.isWritable()) {
-                    executorService.execute(new WriteProcessorHandler(key));
+                    // executorService.execute(new WriteProcessorHandler(key));
+                    new WriteProcessorHandler(key).run();
                 }
             }
         }

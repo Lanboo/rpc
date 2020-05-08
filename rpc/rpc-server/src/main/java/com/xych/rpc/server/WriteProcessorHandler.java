@@ -9,6 +9,9 @@ import java.nio.channels.SocketChannel;
 
 import org.apache.commons.io.IOUtils;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class WriteProcessorHandler implements Runnable {
 
     private SelectionKey writeKey;
@@ -19,11 +22,13 @@ public class WriteProcessorHandler implements Runnable {
 
     @Override
     public void run() {
+        log.info("SelectionKey.OP_WRITE Start");
         SocketChannel channel = null;
         ObjectOutputStream oos = null;
         try {
             channel = (SocketChannel) this.writeKey.channel();
             Object result = this.writeKey.attachment();
+            log.info("OP_WRITE:RpcResult={}", result);
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             oos = new ObjectOutputStream(baos);
             oos.writeObject(result);
@@ -39,5 +44,6 @@ public class WriteProcessorHandler implements Runnable {
             IOUtils.closeQuietly(oos);
             IOUtils.closeQuietly(channel);
         }
+        log.info("SelectionKey.OP_WRITE End");
     }
 }

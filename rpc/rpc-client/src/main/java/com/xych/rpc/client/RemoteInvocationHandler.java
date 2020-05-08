@@ -5,6 +5,9 @@ import java.lang.reflect.Method;
 
 import com.xych.rpc.common.rpc.RpcInvocation;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class RemoteInvocationHandler implements InvocationHandler {
     private String host;
     private int port;
@@ -17,7 +20,7 @@ public class RemoteInvocationHandler implements InvocationHandler {
 
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-        System.out.println("Remote Proxy Start");
+        log.info("Remote Proxy Start");
         RpcInvocation invocation = new RpcInvocation();
         invocation.setClassName(method.getDeclaringClass().getName());
         invocation.setMethodName(method.getName());
@@ -31,7 +34,7 @@ public class RemoteInvocationHandler implements InvocationHandler {
         }
         RpcNetTransport netTransport = new RpcNetTransport(host, port);
         Object obj = netTransport.send(invocation);
-        System.out.println("Remote Proxy End:" + obj);
+        log.info("Remote Proxy End:" + obj);
         return obj;
     }
 

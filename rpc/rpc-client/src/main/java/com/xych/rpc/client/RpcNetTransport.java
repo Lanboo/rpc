@@ -15,6 +15,9 @@ import com.xych.rpc.common.Result;
 import com.xych.rpc.common.rpc.RpcInvocation;
 import com.xych.rpc.common.rpc.RpcResult;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class RpcNetTransport {
     private InetSocketAddress serverAddr;
 
@@ -23,6 +26,7 @@ public class RpcNetTransport {
     }
 
     public Object send(RpcInvocation rpcInvocation) throws Throwable {
+        log.info("RpcInvocation={}", rpcInvocation);
         ObjectOutputStream oos = null;
         ByteArrayOutputStream baos = null;
         ObjectInputStream ois = null;
@@ -37,12 +41,13 @@ public class RpcNetTransport {
             ByteBuffer writeBuffer = ByteBuffer.wrap(rpcMsg);
             channel.write(writeBuffer);
             //
-            ByteBuffer readBuffer = ByteBuffer.allocateDirect(1024);
+            ByteBuffer readBuffer = ByteBuffer.allocate(1024);
             if(channel.read(readBuffer) > 0) {
                 byte[] resultMsg = readBuffer.array();
                 if(resultMsg != null && resultMsg.length > 0) {
                     ois = new ObjectInputStream(new ByteArrayInputStream(resultMsg));
                     Result rpcResult = (RpcResult) ois.readObject();
+                    log.info("RpcResult={}", rpcResult);
                     if(rpcResult.getThrowable() != null) {
                         throw rpcResult.getThrowable();
                     }

@@ -16,6 +16,9 @@ import com.xych.rpc.common.Invocation;
 import com.xych.rpc.common.rpc.RpcInvocation;
 import com.xych.rpc.common.rpc.RpcResult;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class ReadProcessorHandler implements Runnable {
     private final Map<String, Object> serviceMap;
     private final Selector selector;
@@ -29,10 +32,15 @@ public class ReadProcessorHandler implements Runnable {
 
     @Override
     public void run() {
+        log.info("SelectionKey.OP_READ Start");
         ByteBuffer readBuffer = ByteBuffer.allocate(1024);
         SocketChannel channel = (SocketChannel) this.readKey.channel();
         ObjectInputStream ois = null;
         try {
+            if(!channel.isConnected()) {
+                channel.close();
+                return;
+            }
             /**
              * <pre>
              * channel.read 返回值
@@ -51,9 +59,13 @@ public class ReadProcessorHandler implements Runnable {
                 if(rpcMsg != null && rpcMsg.length > 0) {
                     ois = new ObjectInputStream(new ByteArrayInputStream(rpcMsg));
                     RpcInvocation invocation = (RpcInvocation) ois.readObject();
+                    log.info("OP_READ:RpcInvocation={}", invocation);
                     RpcResult result = invoke(invocation);
+                    log.info("OP_READ:RpcResult={}", result);
                     channel.register(this.selector, SelectionKey.OP_WRITE, result);
                 }
+            }
+            else if(readFlag == 0) {
             }
             else if(readFlag == -1) {
                 channel.close();
@@ -63,8 +75,10 @@ public class ReadProcessorHandler implements Runnable {
             e.printStackTrace();
         }
         finally {
+            readBuffer.clear();
             IOUtils.closeQuietly(ois);
         }
+        log.info("SelectionKey.OP_READ End");
     }
 
     private RpcResult invoke(Invocation invocation) {
