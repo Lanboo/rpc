@@ -25,9 +25,6 @@ public class ServerChannelHandler extends ChannelInboundHandlerAdapter {
         if(log.isInfoEnabled()) {
             InetSocketAddress remoteAddr = (InetSocketAddress) ctx.channel().remoteAddress();
             log.info("客户端发起连接:remote.ip={},remote.port={}", remoteAddr.getHostString(), remoteAddr.getPort());
-
-            InetSocketAddress localAddr = (InetSocketAddress) ctx.channel().localAddress();
-            log.info("客户端发起连接:local.ip={},local.port={}", localAddr.getHostString(), localAddr.getPort());
         }
     }
 
@@ -44,6 +41,7 @@ public class ServerChannelHandler extends ChannelInboundHandlerAdapter {
         }
         log.info("READ:RpcResult={}", result);
         ctx.channel().writeAndFlush(result);
+        ctx.close();
     }
 
     private RpcResult invoke(Invocation invocation) {

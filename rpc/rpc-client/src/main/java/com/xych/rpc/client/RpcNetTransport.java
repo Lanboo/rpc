@@ -1,70 +1,79 @@
 package com.xych.rpc.client;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
-import java.nio.channels.SocketChannel;
+import java.util.concurrent.CountDownLatch;
 
-import org.apache.commons.io.IOUtils;
-
-import com.xych.rpc.common.Result;
 import com.xych.rpc.common.rpc.RpcInvocation;
 import com.xych.rpc.common.rpc.RpcResult;
 
+import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.ChannelOption;
+import io.netty.channel.ChannelPipeline;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.codec.LengthFieldPrepender;
+import io.netty.handler.codec.serialization.ClassResolvers;
+import io.netty.handler.codec.serialization.ObjectDecoder;
+import io.netty.handler.codec.serialization.ObjectEncoder;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class RpcNetTransport {
-    private InetSocketAddress serverAddr;
+    private final String host;
+    private final int port;
 
     public RpcNetTransport(String host, int port) {
-        this.serverAddr = new InetSocketAddress(host, port);
+        this.host = host;
+        this.port = port;
     }
 
     public Object send(RpcInvocation rpcInvocation) throws Throwable {
         log.info("RpcInvocation={}", rpcInvocation);
-        ObjectOutputStream oos = null;
-        ByteArrayOutputStream baos = null;
-        ObjectInputStream ois = null;
-        SocketChannel channel = null;
+        ClientChannelHandler channelHandler = new ClientChannelHandler(new CountDownLatch(1));
+        Bootstrap bootstrap = initBootstrap(channelHandler);
+        ChannelFuture future = bootstrap.connect();
+        future.channel().writeAndFlush(rpcInvocation);
+        future.channel().closeFuture().sync();
+        RpcResult rpcResult = channelHandler.getRpcResult();
+        if(rpcResult.getThrowable() != null) {
+            throw rpcResult.getThrowable();
+        }
+        else {
+            return rpcResult.getResult();
+        }
+    }
+
+    private Bootstrap initBootstrap(ClientChannelHandler channelHandler) {
+        EventLoopGroup group = new NioEventLoopGroup();
+        Bootstrap bootstrap = null;
         try {
-            channel = SocketChannel.open(serverAddr);
-            baos = new ByteArrayOutputStream();
-            oos = new ObjectOutputStream(baos);
-            oos.writeObject(rpcInvocation);
-            //            oos.flush();
-            byte[] rpcMsg = baos.toByteArray();
-            ByteBuffer writeBuffer = ByteBuffer.wrap(rpcMsg);
-            channel.write(writeBuffer);
-            //
-            ByteBuffer readBuffer = ByteBuffer.allocate(1024);
-            if(channel.read(readBuffer) > 0) {
-                byte[] resultMsg = readBuffer.array();
-                if(resultMsg != null && resultMsg.length > 0) {
-                    ois = new ObjectInputStream(new ByteArrayInputStream(resultMsg));
-                    Result rpcResult = (RpcResult) ois.readObject();
-                    log.info("RpcResult={}", rpcResult);
-                    if(rpcResult.getThrowable() != null) {
-                        throw rpcResult.getThrowable();
+            bootstrap = new Bootstrap();
+            bootstrap.group(group)//
+                .channel(NioSocketChannel.class)//
+                .option(ChannelOption.TCP_NODELAY, true)//
+                .remoteAddress(new InetSocketAddress(host, port))//
+                .handler(new ChannelInitializer<Channel>() {
+                    @Override
+                    protected void initChannel(Channel ch) throws Exception {
+                        ChannelPipeline pipeline = ch.pipeline();
+                        pipeline.addLast("frameDecoder", new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4));
+                        pipeline.addLast("frameEncoder", new LengthFieldPrepender(4));
+                        pipeline.addLast("encoder", new ObjectEncoder());
+                        pipeline.addLast("decoder", new ObjectDecoder(Integer.MAX_VALUE, ClassResolvers.weakCachingConcurrentResolver(this.getClass().getClassLoader())));
+                        // 业务处理
+                        pipeline.addLast("handler", channelHandler);
                     }
-                    else {
-                        return rpcResult.getResult();
-                    }
-                }
-            }
-            throw new RuntimeException("no receive msg");
+                });
+
         }
-        catch(IOException | ClassNotFoundException e) {
-            throw e;
+        catch(Exception e) {
+            log.error("Client初始化错误", e);
         }
-        finally {
-            IOUtils.closeQuietly(oos);
-            IOUtils.closeQuietly(ois);
-            IOUtils.closeQuietly(channel);
-        }
+        return bootstrap;
     }
 }
