@@ -61,7 +61,7 @@ public class RpcProxyServer {
                     pipeline.addLast(new ServerChannelHandler(serviceMap));
                 }
             });
-        ChannelFuture channelFuture = serverBootstrap.bind(port);
+        ChannelFuture channelFuture = serverBootstrap.bind(port).sync();
         channelFuture.channel().closeFuture().sync();
     }
 
