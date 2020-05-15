@@ -1,5 +1,6 @@
 package com.xych.rpc.client;
 
+import java.net.InetSocketAddress;
 import java.util.concurrent.CountDownLatch;
 
 import com.xych.rpc.common.rpc.RpcResult;
@@ -13,20 +14,28 @@ public class ClientChannelHandler extends ChannelInboundHandlerAdapter {
     private CountDownLatch countDownLatch;
     private RpcResult rpcResult;
 
-    public ClientChannelHandler(CountDownLatch countDownLatch) {
-        this.countDownLatch = countDownLatch;
+    public ClientChannelHandler() {
+        this.countDownLatch = new CountDownLatch(1);
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        if(log.isInfoEnabled()) {
+            InetSocketAddress remoteAddr = (InetSocketAddress) ctx.channel().remoteAddress();
+            log.info("客户端发起连接:remote.ip={},remote.port={}", remoteAddr.getHostString(), remoteAddr.getPort());
+        }
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        System.out.println("Client receive msg=" + msg);
+        log.info("Client receive msg=" + msg);
         this.rpcResult = (RpcResult) msg;
         countDownLatch.countDown();
     }
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        System.out.println("Client Throwable:" + cause);
+        log.info("Client Throwable:" + cause);
         countDownLatch.countDown();
     }
 
